@@ -18,4 +18,6 @@ urlpatterns = [
     path('get-peripherals/', views.GetAllPeripherals.as_view()),
     path('get-devices/', views.GetAllDevices.as_view()),
     path('generate-code/', views.GenerateCode.as_view()),
+    path('save-device/', views.SaveDevice.as_view()),
+    path('get-user-devices/', views.GetUserDevices.as_view()),
 ]

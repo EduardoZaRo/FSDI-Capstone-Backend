@@ -6,14 +6,7 @@ from django.shortcuts import get_object_or_404
 from django.contrib.auth import get_user_model
 from django.contrib.auth.hashers import make_password
 
-class UserSerializer(serializers.ModelSerializer):
-    email = serializers.EmailField(required=True)
-    password = serializers.CharField(min_length=8)
-    class Meta:
-        model = get_user_model()
-        fields = ('email', 'password')
-    def validate_password(self, value):
-        return make_password(value)
+
 
 class PeripheralSerializer(serializers.ModelSerializer):
     name = models.CharField(max_length=32)
@@ -46,3 +39,13 @@ class ChangePasswordSerializer(serializers.Serializer):
 
 class ResetPasswordEmailSerializer(serializers.Serializer):
     email = serializers.EmailField(required=True)
+
+class UserSerializer(serializers.ModelSerializer):
+    email = serializers.EmailField(required=True)
+    password = serializers.CharField(min_length=8)
+    devices = DeviceSerializer(many=True)
+    class Meta:
+        model = get_user_model()
+        fields = ('email', 'password', 'devices')
+    def validate_password(self, value):
+        return make_password(value)

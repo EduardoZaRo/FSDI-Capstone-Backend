@@ -42,6 +42,8 @@ class ApiOverview(views.APIView):
             "get-peripherals": "https://eduardozaro.pythonanywhere.com/get-peripherals/",
             "get-devices": "https://eduardozaro.pythonanywhere.com/get-devices/",
             "generate-code": "https://eduardozaro.pythonanywhere.com/generate-code/",
+            "save-device": "https://eduardozaro.pythonanywhere.com/save-device/",
+            "get-user-devices": "https://eduardozaro.pythonanywhere.com/get-user-devices/",
 
         }
         return Response(api_urls)
@@ -170,14 +172,60 @@ class GenerateCode(views.APIView):
         htmlTextCode = render_to_string('code/base.html', context={"peripherals":peripherals})
         response = Response(data = json.dumps({"code": htmlTextCode}), status = status.HTTP_200_OK)
         response["Access-Control-Allow-Origin"] = "*"
-        print("microcontroller",microcontroller)
+        # print("microcontroller",microcontroller)
+        # microcontrollerObj = Microcontroller.objects.get(name=microcontroller['name'])
+        # peripheralsObj = Peripheral.objects.filter(name__in=(p['title'] for p in peripherals))
+        # deviceObj = Device.objects.create(microcontroller=microcontrollerObj)
+        # deviceObj.peripherals.add(*peripheralsObj)
+        # for peripheral in peripherals:
+        #     devicesObj.peripherals.add(peripheral
+        return response
+
+class SaveDevice(views.APIView):
+    permission_classes = (permissions.AllowAny,)
+    def post(self, request):
+        device = request.data
+        microcontroller = device['microcontroller']
+        peripherals = device['peripherals']
         microcontrollerObj = Microcontroller.objects.get(name=microcontroller['name'])
         peripheralsObj = Peripheral.objects.filter(name__in=(p['title'] for p in peripherals))
         deviceObj = Device.objects.create(microcontroller=microcontrollerObj)
         deviceObj.peripherals.add(*peripheralsObj)
-        # for peripheral in peripherals:
-        #     devicesObj.peripherals.add(peripheral
-        return response
+        request.user.devices.add(deviceObj)
+        request.user.save()
+        return Response(status = status.HTTP_200_OK)
+
+class GetUserDevices(views.APIView):
+    permission_classes = (permissions.IsAuthenticated,)
+    def get(self, request):
+        userObj = User.objects.get(email=self.request.user)
+        user_serializer = serializers.UserSerializer(userObj).data
+        return Response(data=user_serializer['devices'], status = status.HTTP_200_OK)
+        # userObj = User.objects.filter(email=self.request.user)
+        # user_serializer = serializers.UserSerializer(data=userObj)
+        # print(userObj, user_serializer)
+        # if user_serializer.is_valid():
+        #     return Response(data=user_serializer.data, status = status.HTTP_200_OK)
+        return Response(status=status.HTTP_400_BAD_REQUEST)
+        # serializer = serializers.UserSerializer(data=request.user)
+        # if serializer.is_valid():
+        #     serializer_data = User.objects.filter(email=serializer.data.get('email')).data
+        #     return Response(data = serializer_data,  status = status.HTTP_200_OK)
+        # return Response(status = status.HTTP_400_BAD_REQUEST)
+
+# class ChangePassword(views.APIView):
+#     permission_classes = (permissions.AllowAny,)
+#     def post(self, request):
+#         serializer = serializers.ChangePasswordSerializer(data=request.data)
+#         if serializer.is_valid():
+#             user = request.user
+#             if user.check_password(serializer.data.get('old_password')):
+#                 user.set_password(serializer.data.get('new_password'))
+#                 user.save()
+#                 update_session_auth_hash(request, user)  # To update session after password change
+#                 return Response(status=status.HTTP_200_OK)
+#             return Response(status=status.HTTP_400_BAD_REQUEST)
+#         return Response(status=status.HTTP_400_BAD_REQUEST)
 
 # Sample device
 # {
