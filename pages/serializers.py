@@ -15,6 +15,31 @@ class UserSerializer(serializers.ModelSerializer):
     def validate_password(self, value):
         return make_password(value)
 
+class PeripheralSerializer(serializers.ModelSerializer):
+    name = models.CharField(max_length=32)
+    type = models.CharField(max_length=10)
+    neededPins = models.IntegerField()
+    icon = models.CharField(max_length=32)
+    class Meta:
+        model = Peripheral
+        fields = ('name', 'type', 'neededPins', 'icon')
+
+class MicrocontrollerSerializer(serializers.ModelSerializer):
+    name = models.CharField(max_length=32)
+    infoLink = models.URLField()
+    availablePins = models.IntegerField()
+    class Meta:
+        model = Microcontroller
+        fields = ('name', 'infoLink', 'availablePins')
+
+class DeviceSerializer(serializers.ModelSerializer):
+    microcontroller = models.ForeignKey(Microcontroller, on_delete=models.CASCADE)
+    peripherals = models.ManyToManyField(Peripheral)
+    class Meta:
+        model = Device
+        fields = ('microcontroller', 'peripherals')
+
+
 class ChangePasswordSerializer(serializers.Serializer):
     old_password = serializers.CharField(required=True)
     new_password = serializers.CharField(required=True)

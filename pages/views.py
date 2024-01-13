@@ -18,6 +18,7 @@ import socket
 from django.utils.decorators import method_decorator
 from django.middleware.csrf import get_token
 from django.core.mail import send_mail
+from django.contrib.auth.mixins import LoginRequiredMixin
 
 from . import serializers
 # https://docs.hektorprofe.net/django/api-django-rest/sistema-autenticacion-registro/
@@ -36,7 +37,10 @@ class ApiOverview(views.APIView):
             "csrf-cookie": "https://eduardozaro.pythonanywhere.com/csrf-cookie/",
             "all users": "https://eduardozaro.pythonanywhere.com/all-users/",
             "logout": "https://eduardozaro.pythonanywhere.com/logout/",
-
+            "----": "-----",
+            "get-microcontrollers": "https://eduardozaro.pythonanywhere.com/get-microcontrollers/",
+            "get-peripherals": "https://eduardozaro.pythonanywhere.com/get-peripherals/",
+            "get-devices": "https://eduardozaro.pythonanywhere.com/get-devices/",
             "generate-code": "https://eduardozaro.pythonanywhere.com/generate-code/",
 
         }
@@ -136,6 +140,26 @@ class ChangePassword(views.APIView):
             return Response(status=status.HTTP_400_BAD_REQUEST)
         return Response(status=status.HTTP_400_BAD_REQUEST)
 
+class GetAllPeripherals(views.APIView):
+    permission_classes = (permissions.IsAuthenticated,)
+    def get(self, request):
+        peripherals = Peripheral.objects.all()
+        serializer_data = serializers.PeripheralSerializer(peripherals, many=True).data
+        return Response(data = serializer_data,status = status.HTTP_200_OK)
+
+class GetAllMicrocontrollers(views.APIView):
+    permission_classes = (permissions.IsAuthenticated,)
+    def get(self, request):
+        microcontrollers = Microcontroller.objects.all()
+        serializer_data = serializers.MicrocontrollerSerializer(microcontrollers, many=True).data
+        return Response(data = serializer_data,status = status.HTTP_200_OK)
+
+class GetAllDevices(views.APIView):
+    permission_classes = (permissions.IsAuthenticated,)
+    def get(self, request):
+        device = Device.objects.all()
+        serializer_data = serializers.DeviceSerializer(device, many=True).data
+        return Response(data = serializer_data,status = status.HTTP_200_OK)
 
 class GenerateCode(views.APIView):
     permission_classes = (permissions.AllowAny,)
@@ -143,17 +167,18 @@ class GenerateCode(views.APIView):
         device = request.data
         microcontroller = device['microcontroller']
         peripherals = device['peripherals']
-        # body_unicode = request.data.decode('utf-8')
-        # requeson = json.loads(body_unicode) #request + json
-        # elementsDict = {}
-        # for element in requeson:
-        #     print(element)
-        #     elementsDict[element["title"]] = "123"
         htmlTextCode = render_to_string('code/base.html', context={"peripherals":peripherals})
         response = Response(data = json.dumps({"code": htmlTextCode}), status = status.HTTP_200_OK)
         response["Access-Control-Allow-Origin"] = "*"
-
+        print("microcontroller",microcontroller)
+        microcontrollerObj = Microcontroller.objects.get(name=microcontroller['name'])
+        peripheralsObj = Peripheral.objects.filter(name__in=(p['title'] for p in peripherals))
+        deviceObj = Device.objects.create(microcontroller=microcontrollerObj)
+        deviceObj.peripherals.add(*peripheralsObj)
+        # for peripheral in peripherals:
+        #     devicesObj.peripherals.add(peripheral
         return response
+
 # Sample device
 # {
 #     "microcontroller": {

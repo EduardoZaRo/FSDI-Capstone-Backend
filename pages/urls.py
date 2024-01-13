@@ -14,5 +14,8 @@ urlpatterns = [
     path('all-users/', views.GetAllUsers.as_view()),
 
     #Devices funtionalities
-    path('generate-code/', views.GenerateCode.as_view(), name="generate-code"),
+    path('get-microcontrollers/', views.GetAllMicrocontrollers.as_view()),
+    path('get-peripherals/', views.GetAllPeripherals.as_view()),
+    path('get-devices/', views.GetAllDevices.as_view()),
+    path('generate-code/', views.GenerateCode.as_view()),
 ]
