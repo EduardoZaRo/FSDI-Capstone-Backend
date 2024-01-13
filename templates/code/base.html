@@ -1,0 +1,90 @@
+//***** NEEDED LIBRARIES *****
+#include <Arduino.h>
+#include <WiFi.h>
+#include <HTTPClient.h>
+#include <ArduinoJson.h>
+{% if DHT11 %}
+#include <DHT.h>
+#define DHTTYPE DHT11
+{% endif %}
+//***** FIXED VARIABLES *****
+HTTPClient http;
+WiFiClient wifiClient;
+char ssid[] = "YOUR WIFI NAME";
+char pass[] = "YOUR WIFI PASSWORD";
+const char* serverName = "LINK";
+
+//***** ELEMENTS VARIABLES *****
+{% spaceless %}
+
+{% for peripheral in peripherals %}
+int {{peripheral.title}}_{{loop.index}} = <{{peripheral.title}}_{{loop.index}}_PIN>;
+
+{% if peripheral.title == POTENTIOMETER %}
+int N_BITS_RES = 12;
+{% endif %}
+{% endfor %}
+
+{% endspaceless %}
+
+void setup() {
+    //*******SERIAL PORT*********
+    Serial.begin(115200);
+    while (!Serial);
+    {% if LED %}
+    //******* LED ********
+    pinMode(LED_PIN, OUTPUT);
+    {% endif %}
+    {% if LED %}
+    //*******ADC*********
+    analogReadResolution(N_BITS_RES);
+    {% endif %}
+    //*******WIFI*********
+    WiFi.disconnect(true);
+    WiFi.mode(WIFI_STA);
+    WiFi.begin(ssid, pass);
+    Serial.print("IP address:\t");
+    IPAddress myIP = WiFi.localIP();
+    Serial.println(myIP);
+    while (WiFi.status() != WL_CONNECTED) {
+        delay(500);
+        Serial.print(".");
+    }
+    Serial.print("Client IP: ");
+    Serial.println(WiFi.localIP());
+}
+//***** FUNCTIONS PROTOTYPES *****
+void sendPOST();
+
+
+void loop() {
+    sendPOST();
+    delay(30000);
+}
+
+void sendPOST(){
+    int isServerReachable = http.begin(serverName);
+    http.addHeader("Content-Type", "application/json");
+    DynamicJsonDocument toSendJSON(2048);
+    {% if LED %}
+    toSendJSON["LED_STATE"] = digitalRead(LED_PIN);
+    {% endif %}
+    {% if POTENTIOMETER %}
+    toSendJSON["POTENTIOMETER_VALUE"] = analogRead(POTENTIOMETER_PIN);
+    {% endif %}
+
+    String httpRequestData;
+    serializeJson(toSendJSON, httpRequestData);
+    Serial.println("Trying to send via POST: " + httpRequestData + " to " + serverName);
+    int httpResponseCode = http.POST(httpRequestData);
+    Serial.println("HTTP Response code: " + String(httpResponseCode) + " " + String(isServerReachable));
+    if(httpResponseCode > 0){
+        //String response = http.getString();
+        //Serial.println("HTTP response body: " + response);
+        DynamicJsonDocument responseJSON(2048);
+        deserializeJson(responseJSON, http.getStream());
+        int activate = responseJSON["ACTIVATE_LED"].as<int>();
+        digitalWrite(LED_PIN, activate ? HIGH : LOW );
+    }
+    http.end();
+}

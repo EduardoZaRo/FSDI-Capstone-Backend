@@ -37,6 +37,8 @@ class ApiOverview(views.APIView):
             "all users": "https://eduardozaro.pythonanywhere.com/all-users/",
             "logout": "https://eduardozaro.pythonanywhere.com/logout/",
 
+            "generate-code": "https://eduardozaro.pythonanywhere.com/generate-code/",
+
         }
         return Response(api_urls)
 
@@ -135,6 +137,42 @@ class ChangePassword(views.APIView):
         return Response(status=status.HTTP_400_BAD_REQUEST)
 
 
+class GenerateCode(views.APIView):
+    permission_classes = (permissions.AllowAny,)
+    def post(self, request):
+        device = request.data
+        microcontroller = device['microcontroller']
+        peripherals = device['peripherals']
+        # body_unicode = request.data.decode('utf-8')
+        # requeson = json.loads(body_unicode) #request + json
+        # elementsDict = {}
+        # for element in requeson:
+        #     print(element)
+        #     elementsDict[element["title"]] = "123"
+        htmlTextCode = render_to_string('code/base.html', context={"peripherals":peripherals})
+        response = Response(data = json.dumps({"code": htmlTextCode}), status = status.HTTP_200_OK)
+        response["Access-Control-Allow-Origin"] = "*"
+
+        return response
+# Sample device
+# {
+#     "microcontroller": {
+#         "name": "ESP32",
+#         "availablePins": 32,
+#         "infoLink": "https://www.espressif.com/sites/default/files/documentation/esp32_technical_reference_manual_en.pdf",
+#         "_id": "1"
+#     },
+#     "peripherals": [{
+#         "title": "LED",
+#         "type": "INPUT",
+#         "position": "left",
+#         "icon": "lightbulb",
+#         "neededPins": 1,
+#         "_id": "1"
+#     }]
+# }
+
+
 @csrf_exempt
 def home(request):
     if request.method == 'POST':
@@ -145,20 +183,8 @@ def home(request):
         return HttpResponse(json.dumps({"ACTIVATE_LED": 0}))
     return render(request, 'pages/home.html')
 
-@csrf_exempt
-def generate_code(request):
-    if request.method == 'POST':
-        body_unicode = request.body.decode('utf-8')
-        requeson = json.loads(body_unicode) #request + json
-        elementsDict = {}
-        for element in requeson:
-            print(element)
-            elementsDict[element["title"]] = 1
-        htmlTextCode = render_to_string('codes/base.html', elementsDict)
-        response = HttpResponse(json.dumps({"code": htmlTextCode}))
-        response["Access-Control-Allow-Origin"] = "*"
 
-        return response
+
 
 @csrf_exempt
 def save_led_state(request):
