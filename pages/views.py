@@ -44,6 +44,11 @@ class ApiOverview(views.APIView):
             "generate-code": "https://eduardozaro.pythonanywhere.com/generate-code/",
             "save-device": "https://eduardozaro.pythonanywhere.com/save-device/",
             "get-user-devices": "https://eduardozaro.pythonanywhere.com/get-user-devices/",
+            "delete-device": "https://eduardozaro.pythonanywhere.com/delete-device/",
+            "get-device-read": "https://eduardozaro.pythonanywhere.com/get-device-read/",
+            "----": "-----",
+            "save-from-microcontroller": "https://eduardozaro.pythonanywhere.com/save-from-microcontroller/",
+            "get-action-microcontroller": "https://eduardozaro.pythonanywhere.com/get-action-microcontroller/",
 
         }
         return Response(api_urls)
@@ -167,30 +172,43 @@ class GenerateCode(views.APIView):
     permission_classes = (permissions.AllowAny,)
     def post(self, request):
         device = request.data
+        name = device['name']
         microcontroller = device['microcontroller']
         peripherals = device['peripherals']
-        htmlTextCode = render_to_string('code/base.html', context={"peripherals":peripherals})
+        codeTemplateByMicrocontroller = ""
+        if(microcontroller['name'] == 'ESP32'):
+            codeTemplateByMicrocontroller = 'code/esp32.html'
+        elif(microcontroller['name'] == 'Arduino Uno R4'):
+            codeTemplateByMicrocontroller = 'code/arduinoUnoR4.html'
+        if(microcontroller['name'] == 'Raspberry Pi Pico'):
+            codeTemplateByMicrocontroller = 'code/raspberryPiPico.html'
+        htmlTextCode = render_to_string(codeTemplateByMicrocontroller, context={"name": name, "microcontroller": microcontroller, "peripherals": peripherals})
+
+
         response = Response(data = json.dumps({"code": htmlTextCode}), status = status.HTTP_200_OK)
-        response["Access-Control-Allow-Origin"] = "*"
-        # print("microcontroller",microcontroller)
-        # microcontrollerObj = Microcontroller.objects.get(name=microcontroller['name'])
-        # peripheralsObj = Peripheral.objects.filter(name__in=(p['title'] for p in peripherals))
-        # deviceObj = Device.objects.create(microcontroller=microcontrollerObj)
-        # deviceObj.peripherals.add(*peripheralsObj)
-        # for peripheral in peripherals:
-        #     devicesObj.peripherals.add(peripheral
         return response
 
 class SaveDevice(views.APIView):
     permission_classes = (permissions.AllowAny,)
     def post(self, request):
         device = request.data
+        deviceName = device['name']
         microcontroller = device['microcontroller']
         peripherals = device['peripherals']
         microcontrollerObj = Microcontroller.objects.get(name=microcontroller['name'])
-        peripheralsObj = Peripheral.objects.filter(name__in=(p['title'] for p in peripherals))
-        deviceObj = Device.objects.create(microcontroller=microcontrollerObj)
-        deviceObj.peripherals.add(*peripheralsObj)
+
+
+        # peripheralsObj = Peripheral.objects.filter(name__in=(p['title'] for p in peripherals))
+        # deviceObj = Device.objects.create(name = deviceName,microcontroller=microcontrollerObj)
+        # deviceObj.peripherals.add(*peripheralsObj)
+        # request.user.devices.add(deviceObj)
+        deviceperipheral_relation_list = []
+        for peripheral in peripherals:
+            peripheralObj = Peripheral.objects.get(name=peripheral['title'])
+            devicePeripheralRelationObj = DevicePeripheral.objects.create(peripheral=peripheralObj)
+            deviceperipheral_relation_list.append(devicePeripheralRelationObj)
+        deviceObj = Device.objects.create(name = deviceName,microcontroller=microcontrollerObj)
+        deviceObj.peripherals.add(*deviceperipheral_relation_list)
         request.user.devices.add(deviceObj)
         request.user.save()
         return Response(status = status.HTTP_200_OK)
@@ -201,17 +219,41 @@ class GetUserDevices(views.APIView):
         userObj = User.objects.get(email=self.request.user)
         user_serializer = serializers.UserSerializer(userObj).data
         return Response(data=user_serializer['devices'], status = status.HTTP_200_OK)
-        # userObj = User.objects.filter(email=self.request.user)
-        # user_serializer = serializers.UserSerializer(data=userObj)
-        # print(userObj, user_serializer)
-        # if user_serializer.is_valid():
-        #     return Response(data=user_serializer.data, status = status.HTTP_200_OK)
-        return Response(status=status.HTTP_400_BAD_REQUEST)
-        # serializer = serializers.UserSerializer(data=request.user)
-        # if serializer.is_valid():
-        #     serializer_data = User.objects.filter(email=serializer.data.get('email')).data
-        #     return Response(data = serializer_data,  status = status.HTTP_200_OK)
-        # return Response(status = status.HTTP_400_BAD_REQUEST)
+
+class DeleteDevice(views.APIView):
+    permission_classes = (permissions.IsAuthenticated,)
+    def post(self, request):
+        Device.objects.get(id=request.data['id']).delete()
+        return Response(status = status.HTTP_200_OK)
+
+class GetDeviceRead(views.APIView):
+    permission_classes = (permissions.IsAuthenticated,)
+    # {
+    #     "deviceID": 21,
+    #     "peripheralID": 4
+    # }
+    def post(self, request):
+        userObj = User.objects.get(email=self.request.user)
+        deviceObj = Device.objects.get(id=request.data['deviceID'])
+        peripheralObj = DevicePeripheral.objects.get(id=request.data['peripheralID'])
+        readObj = Read.objects.get(user=userObj, device=deviceObj, peripheral=peripheralObj)
+        read_serializer = serializers.ReadSerializer(readObj).data
+        return Response(data = read_serializer, status = status.HTTP_200_OK)
+
+class SetDeviceAction(views.APIView):
+    permission_classes = (permissions.IsAuthenticated,)
+    # {
+    #     "device-id": 21,
+    #     "peripheral-id": 4
+    #     "value": 1
+    # }
+    def post(self, request):
+        userObj = User.objects.get(email=self.request.user)
+        deviceObj = Device.objects.get(id=request.data['deviceID'])
+        peripheralObj = DevicePeripheral.objects.get(id=request.data['peripheralID'])
+        Action.objects.filter(user=userObj, device=deviceObj, peripheral=peripheralObj).update(value=self.request.data["value"])
+        return Response(data = {"xd", self.request.data["value"]}, status = status.HTTP_200_OK)
+
 
 # class ChangePassword(views.APIView):
 #     permission_classes = (permissions.AllowAny,)
@@ -229,6 +271,7 @@ class GetUserDevices(views.APIView):
 
 # Sample device
 # {
+#     "name": "Incredible device",
 #     "microcontroller": {
 #         "name": "ESP32",
 #         "availablePins": 32,
@@ -244,6 +287,24 @@ class GetUserDevices(views.APIView):
 #         "_id": "1"
 #     }]
 # }
+
+class GetActionMicrocontroller(views.APIView):
+    permission_classes = (permissions.IsAuthenticated,)
+    def post(self, request):
+        actionID = request.data['actionID']
+        actionObj = Action.objects.get(id=actionID)
+        action_serializer = serializers.ActionSerializer(actionObj).data
+        return Response(data = {"value": action_serializer['value']}, status = status.HTTP_200_OK)
+
+class SaveFromMicrocontroller(views.APIView):
+    permission_classes = (permissions.IsAuthenticated,)
+    def post(self, request):
+        readID = request.data['readID']
+        value = request.data['value']
+        Read.objects.filter(id=readID).update(value=value)
+
+
+        return Response(data = {"XDD": "XD"}, status = status.HTTP_200_OK)
 
 
 @csrf_exempt

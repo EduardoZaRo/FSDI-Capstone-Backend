@@ -15,7 +15,7 @@ class PeripheralSerializer(serializers.ModelSerializer):
     icon = models.CharField(max_length=32)
     class Meta:
         model = Peripheral
-        fields = ('name', 'type', 'neededPins', 'icon')
+        fields = ('id', 'name', 'type', 'neededPins', 'icon')
 
 class MicrocontrollerSerializer(serializers.ModelSerializer):
     name = models.CharField(max_length=32)
@@ -23,15 +23,23 @@ class MicrocontrollerSerializer(serializers.ModelSerializer):
     availablePins = models.IntegerField()
     class Meta:
         model = Microcontroller
-        fields = ('name', 'infoLink', 'availablePins')
+        fields = ('id', 'name', 'infoLink', 'availablePins')
+
+class DevicePeripheralSerializer(serializers.ModelSerializer):
+    peripheral = PeripheralSerializer()
+    class Meta:
+        model = DevicePeripheral
+        fields = ('id', 'peripheral')
 
 class DeviceSerializer(serializers.ModelSerializer):
-    microcontroller = models.ForeignKey(Microcontroller, on_delete=models.CASCADE)
-    peripherals = models.ManyToManyField(Peripheral)
+    # microcontroller = models.ForeignKey(Microcontroller, on_delete=models.CASCADE)
+    # peripherals = models.ManyToManyField(Peripheral)
+    name = models.CharField(max_length=50, default = "Unnamed device")
+    microcontroller = MicrocontrollerSerializer()
+    peripherals = DevicePeripheralSerializer(many=True)
     class Meta:
         model = Device
-        fields = ('microcontroller', 'peripherals')
-
+        fields = ('id', 'name', 'microcontroller', 'peripherals')
 
 class ChangePasswordSerializer(serializers.Serializer):
     old_password = serializers.CharField(required=True)
@@ -49,3 +57,25 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ('email', 'password', 'devices')
     def validate_password(self, value):
         return make_password(value)
+
+class ReadSerializer(serializers.ModelSerializer):
+    user = UserSerializer()
+    device = DeviceSerializer()
+    peripheral = DevicePeripheralSerializer()
+    value = models.CharField(max_length=32)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    class Meta:
+        model = Read
+        fields = ('id', 'user', 'device', 'peripheral', 'value', 'created_at', 'updated_at')
+
+class ActionSerializer(serializers.ModelSerializer):
+    user = UserSerializer()
+    device = DeviceSerializer()
+    peripheral = DevicePeripheralSerializer()
+    value = models.CharField(max_length=32)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    class Meta:
+        model = Read
+        fields = ('id', 'user', 'device', 'peripheral', 'value', 'created_at', 'updated_at')

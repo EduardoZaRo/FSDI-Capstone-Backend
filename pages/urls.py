@@ -1,5 +1,6 @@
 from django.urls import path
 from pages import views
+from django.views.decorators.csrf import csrf_exempt
 
 urlpatterns = [
     # User auth URLS
@@ -20,4 +21,10 @@ urlpatterns = [
     path('generate-code/', views.GenerateCode.as_view()),
     path('save-device/', views.SaveDevice.as_view()),
     path('get-user-devices/', views.GetUserDevices.as_view()),
+    path('delete-device/', views.DeleteDevice.as_view()),
+    path('get-device-read/', views.GetDeviceRead.as_view()),
+    path('set-device-action/', views.SetDeviceAction.as_view()),
+    # Microcontrollers endpoints
+    path('save-from-microcontroller/', views.SaveFromMicrocontroller().as_view()),
+    path('get-action-microcontroller/', views.GetActionMicrocontroller().as_view()),
 ]
