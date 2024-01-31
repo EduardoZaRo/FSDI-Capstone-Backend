@@ -202,13 +202,21 @@ class SaveDevice(views.APIView):
         # deviceObj = Device.objects.create(name = deviceName,microcontroller=microcontrollerObj)
         # deviceObj.peripherals.add(*peripheralsObj)
         # request.user.devices.add(deviceObj)
+        deviceObj = Device.objects.create(name = deviceName,microcontroller=microcontrollerObj)
         deviceperipheral_relation_list = []
         for peripheral in peripherals:
             peripheralObj = Peripheral.objects.get(name=peripheral['title'])
             devicePeripheralRelationObj = DevicePeripheral.objects.create(peripheral=peripheralObj)
             deviceperipheral_relation_list.append(devicePeripheralRelationObj)
-        deviceObj = Device.objects.create(name = deviceName,microcontroller=microcontrollerObj)
+            userObj = User.objects.get(email=self.request.user.email)
+            Read.objects.create(user=userObj, peripheral = devicePeripheralRelationObj, device = deviceObj)
+            if(peripheralObj.type in ['OUT', 'INOUT']):
+                Action.objects.create(user=userObj, peripheral = devicePeripheralRelationObj, device = deviceObj)
+
+
+
         deviceObj.peripherals.add(*deviceperipheral_relation_list)
+
         request.user.devices.add(deviceObj)
         request.user.save()
         return Response(status = status.HTTP_200_OK)
