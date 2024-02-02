@@ -175,6 +175,7 @@ class GenerateCode(views.APIView):
         name = device['name']
         microcontroller = device['microcontroller']
         peripherals = device['peripherals']
+        print(peripherals)
         codeTemplateByMicrocontroller = ""
         if(microcontroller['name'] == 'ESP32'):
             codeTemplateByMicrocontroller = 'code/esp32.html'
@@ -182,7 +183,26 @@ class GenerateCode(views.APIView):
             codeTemplateByMicrocontroller = 'code/arduinoUnoR4.html'
         if(microcontroller['name'] == 'Raspberry Pi Pico'):
             codeTemplateByMicrocontroller = 'code/raspberryPiPico.html'
-        htmlTextCode = render_to_string(codeTemplateByMicrocontroller, context={"name": name, "microcontroller": microcontroller, "peripherals": peripherals})
+
+        try:
+            userObj = User.objects.get(email=self.request.user.email)
+            deviceObj = Device.objects.get(pk=device["id"])
+            for peripheral in peripherals:
+
+                peripheralObj = Peripheral.objects.get(name=peripheral['name'])
+                devicePeripheralRelationObj = DevicePeripheral.objects.get(id=peripheral["deviceID"])
+
+                peripheral["read"] = Read.objects.get(user=userObj, peripheral = devicePeripheralRelationObj, device = deviceObj)
+                if(peripheralObj.type in ['OUT', 'INOUT']):
+                    peripheral["action"] = Action.objects.get(user=userObj, peripheral = devicePeripheralRelationObj, device = deviceObj)
+
+
+                # peripheral["read"] = Read.objects.create(user=userObj, peripheral = devicePeripheralRelationObj, device = deviceObj)
+                # if(peripheralObj.type in ['OUT', 'INOUT']):
+                #     peripheral["action"] = Action.objects.get(user=userObj, peripheral = devicePeripheralRelationObj, device = deviceObj)
+        except:
+            pass
+        htmlTextCode = render_to_string(codeTemplateByMicrocontroller, context={"name": name, "microcontroller": microcontroller, "peripherals": list(peripherals)})
 
 
         response = Response(data = json.dumps({"code": htmlTextCode}), status = status.HTTP_200_OK)
@@ -205,10 +225,12 @@ class SaveDevice(views.APIView):
         deviceObj = Device.objects.create(name = deviceName,microcontroller=microcontrollerObj)
         deviceperipheral_relation_list = []
         for peripheral in peripherals:
-            peripheralObj = Peripheral.objects.get(name=peripheral['title'])
+            peripheralObj = Peripheral.objects.get(name=peripheral['name'])
             devicePeripheralRelationObj = DevicePeripheral.objects.create(peripheral=peripheralObj)
             deviceperipheral_relation_list.append(devicePeripheralRelationObj)
             userObj = User.objects.get(email=self.request.user.email)
+            print(peripheral)
+            print("ENSALADA")
             Read.objects.create(user=userObj, peripheral = devicePeripheralRelationObj, device = deviceObj)
             if(peripheralObj.type in ['OUT', 'INOUT']):
                 Action.objects.create(user=userObj, peripheral = devicePeripheralRelationObj, device = deviceObj)
@@ -245,6 +267,7 @@ class GetDeviceRead(views.APIView):
         deviceObj = Device.objects.get(id=request.data['deviceID'])
         peripheralObj = DevicePeripheral.objects.get(id=request.data['peripheralID'])
         readObj = Read.objects.get(user=userObj, device=deviceObj, peripheral=peripheralObj)
+        print(readObj)
         read_serializer = serializers.ReadSerializer(readObj).data
         return Response(data = read_serializer, status = status.HTTP_200_OK)
 
